@@ -1,0 +1,36 @@
+# Gradient Boosting in R
+
+library(caret)
+rm(list=ls())
+setwd("C:\\Users\\ts93856\\Desktop\\AV")
+library(Metrics)
+
+complete <- read.csv("complete_data.csv", stringsAsFactors = TRUE)
+train <- complete[complete$Train == 1,]
+score <- complete[complete$Train != 1,]
+
+set.seed(999)
+ind <- sample(2, nrow(train), replace=T, prob=c(0.60,0.40))
+trainData<-train[ind==1,]
+testData <- train[ind==2,]
+
+set.seed(999)
+ind1 <- sample(2, nrow(testData), replace=T, prob=c(0.50,0.50))
+trainData_ens1<-testData[ind1==1,]
+testData_ens1 <- testData[ind1==2,]
+
+table(testData_ens1$Disbursed)[2]/nrow(testData_ens1)
+# Response Rate of 9.052%
+
+# Here is all you need to do, to build a GBM model.
+
+fitControl <- trainControl(method = "repeatedcv", number = 4, repeats = 4)
+trainData$outcome1 <- ifelse(trainData$Disbursed == 1, "Yes","No")
+set.seed(33)
+gbmFit1 <- train(as.factor(outcome1) ~ ., data = trainData[,-26], method = "gbm", trControl = fitControl,verbose = FALSE)
+gbm_dev <- predict(gbmFit1, trainData,type= "prob")[,2] 
+gbm_ITV1 <- predict(gbmFit1, trainData_ens1,type= "prob")[,2] 
+gbm_ITV2 <- predict(gbmFit1, testData_ens1,type= "prob")[,2]
+auc(trainData$Disbursed,gbm_dev)
+auc(trainData_ens1$Disbursed,gbm_ITV1)
+auc(testData_ens1$Disbursed,gbm_ITV2)
